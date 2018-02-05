@@ -62,6 +62,15 @@ defmodule Sentry.Client do
     sample_rate = Keyword.get(opts, :sample_rate) || Config.sample_rate()
 
     event = maybe_call_before_send_event(event)
+    # We need to remove cookies from all events.
+    # We are doing this in this place because a request metadata may be set in
+    # different places.
+    request = Map.delete(event.request, :cookies)
+    {_, request} = pop_in(request, [:headers, "cookie"])
+
+    event = %Event{event| request: request}
+
+    event = maybe_call_before_send_event(event)
 
     if sample_event?(sample_rate) do
       encode_and_send(event, result)
